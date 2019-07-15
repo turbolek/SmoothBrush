@@ -14,6 +14,10 @@ public class TestDrawer : MonoBehaviour
     [SerializeField]
     private float bufferZoneRadius;
 
+    [SerializeField]
+    private float epsilon = .5f;
+
+    private Vector3 anchor;
 
     Coroutine samplingCoroutine = null;
     Coroutine drawingCoroutine = null;
@@ -43,12 +47,18 @@ public class TestDrawer : MonoBehaviour
             {
                 StopCoroutine(samplingCoroutine);
             }
+            List<Vector3> simplePath = SimplifyPath(mousePositions);
+
+            foreach (Vector3 point in simplePath)
+            {
+                Instantiate(brush3Prefab, point, Quaternion.identity);
+            }
         }
 
-        if (mousePositions.Count >= 2 && drawingCoroutine == null)
-        {
-            drawingCoroutine = StartCoroutine(DrawSegment());
-        }
+        //    if (mousePositions.Count >= 2 && drawingCoroutine == null)
+        //    {
+        //        drawingCoroutine = StartCoroutine(DrawSegment());
+        //    }
     }
 
     private IEnumerator DrawingCoroutine()
@@ -61,18 +71,19 @@ public class TestDrawer : MonoBehaviour
             mousePositions.Add(mouseWorldPosition);
             Instantiate(brush2Prefab, mouseWorldPosition, Quaternion.identity);
 
-            yield return new WaitForSeconds(0.2f);
+            yield return new WaitForSeconds(0.1f);
         }
     }
 
     private IEnumerator DrawSegment()
     {
-        for (int i = 1; i <= 100; i++)
+        for (int i = 1; i <= 25; i++)
         {
-            Vector3 positionToDraw = iTween.PointOnPath(GetDrawingPath(), (float)i / 100f);
+            Vector3 positionToDraw = iTween.PointOnPath(GetDrawingPath(), (float)i / 25f);
             Instantiate(brush3Prefab, positionToDraw, Quaternion.identity);
             yield return null;
         }
+        anchor = mousePositions[0];
         mousePositions.RemoveAt(0);
         drawingCoroutine = null;
     }
@@ -83,6 +94,55 @@ public class TestDrawer : MonoBehaviour
         path[0] = mousePositions[0];
         path[1] = mousePositions[1];
         return path;
+    }
+
+    List<Vector3> SimplifyPath(List<Vector3> path)
+    {
+        if (path.Count <= 2)
+        {
+            return path;
+        }
+        else
+        {
+            float distance;
+            int index;
+            Vector3 furthestPoint = GetFurthestMiddlePointOfPath(path, out distance, out index);
+
+            if (distance <= epsilon)
+            {
+                path.RemoveAt(index);
+                return SimplifyPath(path);
+            }
+            else
+            {
+                List<Vector3> firstPart = SimplifyPath(path.GetRange(0, index));
+                List<Vector3> secondPart = SimplifyPath(path.GetRange(index, path.Count - 1));
+                secondPart.RemoveAt(index);
+                firstPart.AddRange(secondPart);
+                return firstPart;
+            }
+        }
+    }
+
+    Vector3 GetFurthestMiddlePointOfPath(List<Vector3> path, out float maxDistance, out int index)
+    {
+        Ray ray = new Ray(path[0], path[path.Count - 1]);
+        maxDistance = 0f;
+        index = 0;
+        Vector3 furthestMiddlePoint = path[0];
+
+        for (int i = 1; i < path.Count - 1; i++)
+        {
+            Vector3 currentPoint = path[i];
+            float currentDistance = Vector3.Cross(ray.direction, currentPoint - ray.origin).magnitude;
+            if (currentDistance > maxDistance)
+            {
+                index = i;
+                maxDistance = currentDistance;
+                furthestMiddlePoint = currentPoint;
+            }
+        }
+        return furthestMiddlePoint;
     }
 
     public void DrawRawPositions()
