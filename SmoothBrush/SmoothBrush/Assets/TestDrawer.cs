@@ -115,9 +115,9 @@ public class TestDrawer : MonoBehaviour
             }
             else
             {
-                List<Vector3> firstPart = SimplifyPath(path.GetRange(0, index));
-                List<Vector3> secondPart = SimplifyPath(path.GetRange(index, path.Count - 1));
-                secondPart.RemoveAt(index);
+                List<Vector3> firstPart = SimplifyPath(path.GetRange(0, index + 1));
+                List<Vector3> secondPart = SimplifyPath(path.GetRange(index, path.Count - index));
+                secondPart.RemoveAt(0);
                 firstPart.AddRange(secondPart);
                 return firstPart;
             }
@@ -126,7 +126,7 @@ public class TestDrawer : MonoBehaviour
 
     Vector3 GetFurthestMiddlePointOfPath(List<Vector3> path, out float maxDistance, out int index)
     {
-        Ray ray = new Ray(path[0], path[path.Count - 1]);
+        Ray ray = new Ray(path[0], path[path.Count - 1] - path[0]);
         maxDistance = 0f;
         index = 0;
         Vector3 furthestMiddlePoint = path[0];
