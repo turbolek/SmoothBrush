@@ -13,6 +13,9 @@ public class TestDrawer : MonoBehaviour
     public GameObject brush2Prefab;
     public GameObject brush3Prefab;
 
+    List<GameObject> drawnPathPoints = new List<GameObject>();
+    int currentIndex = 0;
+
     [SerializeField]
     private float brushSize = .25f;
 
@@ -54,7 +57,7 @@ public class TestDrawer : MonoBehaviour
 
         if (!Input.GetMouseButton(0))
         {
-            transform.position = GetMouseWorldPosition();
+            currentPosition = GetMouseWorldPosition();
         }
     }
 
@@ -68,17 +71,27 @@ public class TestDrawer : MonoBehaviour
             pathAnchors[1] = currentPosition;
             pathAnchors[2] = GetMouseWorldPosition();
 
+            foreach (GameObject pathpoint in drawnPathPoints)
+            {
+                Destroy(pathpoint.gameObject);
+            }
+            drawnPathPoints.Clear();
+
             for (float percent = 0.5f; percent <= 1f; percent += 0.01f)
             {
-                path.Add(iTween.PointOnPath(pathAnchors, percent));
+                Vector3 point = iTween.PointOnPath(pathAnchors, percent);
+                path.Add(point);
+                drawnPathPoints.Add(Instantiate(brush2Prefab, point, Quaternion.identity));
             }
+            Debug.Log(path.Count.ToString());
             yield return new WaitForSeconds(pathRefreshTime);
+            currentIndex = 0;
         }
     }
 
     private IEnumerator PrintCoroutine()
     {
-        int currentIndex = 0;
+        currentIndex = 0;
         List<Vector3> pointsToDraw = new List<Vector3>();
         float distanceToDraw = 0f;
 
@@ -86,24 +99,30 @@ public class TestDrawer : MonoBehaviour
         {
             distanceToDraw += velocity * Time.deltaTime;
 
-            while (distanceToDraw > 0f)
+            while (distanceToDraw >= brushSize)
             {
                 if (path.Count > currentIndex + 1)
                 {
-                    pointsToDraw.Add(path[currentIndex]);
-                    distanceToDraw -= Vector3.Distance(path[currentIndex], path[currentIndex + 1]);
-                    currentIndex++;
+                    Vector3 drawDirection = (path[currentIndex + 1] - path[currentIndex]).normalized;
+                    float pointDistance = Vector3.Distance(path[currentIndex + 1], path[currentIndex]);
+                    if (pointDistance >= brushSize)
+                    {
+                        currentPosition += drawDirection * brushSize;
+                        Instantiate(brush3Prefab, currentPosition, Quaternion.identity);
+                        distanceToDraw -= brushSize;
+                    }
+                    else
+                    {
+                        currentIndex++;
+                        currentPosition = path[currentIndex];
+                        Instantiate(brush3Prefab, currentPosition, Quaternion.identity);
+                        distanceToDraw -= pointDistance;
+                    }
                 }
                 else
                 {
                     distanceToDraw = 0f;
                 }
-            }
-
-            foreach (Vector3 point in pointsToDraw)
-            {
-                Instantiate(brush3Prefab, point, Quaternion.identity);
-                currentPosition = point;
             }
             yield return null;
         }
