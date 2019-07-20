@@ -74,7 +74,7 @@ public class TestDrawer : MonoBehaviour
         }
 
         float distance = Vector3.Distance(currentPosition, GetMouseWorldPosition());
-        velocity = Mathf.Clamp(distance * velocityFactor, 1f, 10f);
+        velocity = Mathf.Clamp(distance * velocityFactor, 1f, 100f);
     }
 
     private IEnumerator PathCalculationCoroutine()
