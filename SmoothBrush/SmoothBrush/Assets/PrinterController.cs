@@ -1,17 +1,32 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
 using System.Collections;
 
 public class PrinterController : MonoBehaviour
 {
+    [SerializeField]
+    private Camera mainCamera;
+    [SerializeField]
+    private DrawingCanvas drawingCanvas;
+
+    [SerializeField]
+    private int brushPoolSize = 100;
+
+    [SerializeField]
+    private float minVelocity = 1f;
     private float velocity = 2f;
-    private float distanceToDraw;
-    private float brushSize = 0.16f;
+    [SerializeField]
+    private float bufferZoneRadius = 1f;
+
     [SerializeField]
     private GameObject brushPrefab;
     [SerializeField]
     private GameObject brushPrefab2;
 
-    private Vector2 drawingStartPoint;
+    private float brushSize = 0.16f;
+
+    private float distanceToPrint;
+    private Vector2 printingStartPoint;
     private Vector2 lastDrawnPoint;
 
     private DrawingPathGetter pathGetter;
@@ -19,43 +34,50 @@ public class PrinterController : MonoBehaviour
     private float pathRefreshTime = 0.1f;
     private WaitForSeconds pathRefreshWaitForSeconds;
 
-    private Camera renderingCamera;
+    private BrushPool brushPool;
 
     private void Awake()
     {
         pathRefreshWaitForSeconds = new WaitForSeconds(pathRefreshTime);
-        renderingCamera = Camera.main;
 
         pathGetter = new DrawingPathGetter();
-        pathGetter.prefab = brushPrefab2;
+        brushPool = new BrushPool(brushPrefab, brushPoolSize);
+        drawingCanvas.Init();
     }
 
     private void Update()
     {
         if (Input.GetMouseButtonDown(0))
         {
-            StartDrawing();
+            StartPrinting();
         }
 
-        if (Input.GetMouseButton(0))
+        if (Input.GetMouseButton(0) && Vector2.Distance(lastDrawnPoint, GetMouseWorldPosition()) >= bufferZoneRadius)
         {
-            distanceToDraw = velocity * Time.deltaTime;
-            DrawPathSegment(pathGetter.GetNextPathSegment(lastDrawnPoint, distanceToDraw, brushSize));
+            velocity = CalculateVelocity();
+            distanceToPrint = velocity * Time.deltaTime;
+            PrintPathSegment(pathGetter.GetNextPathSegment(lastDrawnPoint, distanceToPrint, brushSize));
         }
 
         if (Input.GetMouseButtonUp(0))
         {
-            StopDrawing();
+            StopPrinting();
         }
     }
 
-    private void DrawPathSegment(Vector2[] pathSegment)
+    private void PrintPathSegment(Vector2[] pathSegment)
     {
+        brushPool.ReturnAllInstancesToPool();
         foreach (Vector2 point in pathSegment)
         {
-            Instantiate(brushPrefab, point, Quaternion.identity);
-            lastDrawnPoint = point;
+            PrintPoint(point);
         }
+    }
+
+    private void PrintPoint(Vector2 point)
+    {
+        brushPool.SetBrushInstanceAtPosition(point);
+        lastDrawnPoint = point;
     }
 
     private IEnumerator PathRefreshCoroutine()
@@ -63,25 +85,27 @@ public class PrinterController : MonoBehaviour
         while (true)
         {
             pathGetter.CalculatePath(lastDrawnPoint, GetMouseWorldPosition());
-            yield return pathRefreshWaitForSeconds;
+            yield return new WaitForSeconds(pathRefreshTime / velocity);
         }
     }
 
-    private void StartDrawing()
+    private void StartPrinting()
     {
-        drawingStartPoint = GetMouseWorldPosition();
-        lastDrawnPoint = drawingStartPoint;
+        printingStartPoint = GetMouseWorldPosition();
+        lastDrawnPoint = printingStartPoint;
 
         if (pathRefreshCoroutine != null)
         {
             StopCoroutine(pathRefreshCoroutine);
         }
-
+        PrintPoint(printingStartPoint);
         pathRefreshCoroutine = StartCoroutine(PathRefreshCoroutine());
     }
 
-    private void StopDrawing()
+    private void StopPrinting()
     {
+        brushPool.ReturnAllInstancesToPool();
+
         if (pathRefreshCoroutine != null)
         {
             StopCoroutine(pathRefreshCoroutine);
@@ -90,8 +114,16 @@ public class PrinterController : MonoBehaviour
 
     private Vector3 GetMouseWorldPosition()
     {
-        Vector3 mouseWorlPosition = renderingCamera.ScreenToWorldPoint(Input.mousePosition);
+        Vector3 mouseWorlPosition = mainCamera.ScreenToWorldPoint(Input.mousePosition);
         mouseWorlPosition.z = 0f;
         return mouseWorlPosition;
+    }
+
+    private float CalculateVelocity()
+    {
+        float mouseDistance = Vector2.Distance(lastDrawnPoint, GetMouseWorldPosition());
+        float velocityMultiplier = mouseDistance >= 1f ? mouseDistance : 1f;
+
+        return minVelocity * velocityMultiplier;
     }
 }
