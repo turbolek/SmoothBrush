@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class TestDrawer : MonoBehaviour
 {
+    private Printer printer;
+
     public class BezierAnchorPoint
     {
         public Vector2 position;
@@ -11,12 +13,11 @@ public class TestDrawer : MonoBehaviour
         public Vector2 controlPointAfter;
     }
 
-    private float velocity = 1f;
     [SerializeField]
     private float velocityFactor = 1f;
+
     private List<Vector3> path = new List<Vector3>();
 
-    private Vector3 currentPosition;
 
     public GameObject brush1Prefab;
     public GameObject brush2Prefab;
@@ -38,6 +39,13 @@ public class TestDrawer : MonoBehaviour
     [SerializeField]
     private float pathRefreshTime = .5f;
 
+    private void Awake()
+    {
+        printer = new Printer();
+        printer.SetBrushSize(brushSize);
+        printer.SetBrushPrefab(brush3Prefab);
+    }
+
     // Update is called once per frame
     void Update()
     {
@@ -53,7 +61,7 @@ public class TestDrawer : MonoBehaviour
             }
 
             pathCoroutine = StartCoroutine(PathCalculationCoroutine());
-            printingCoroutine = StartCoroutine(PrintCoroutine());
+            printingCoroutine = StartCoroutine(printer.PrintCoroutine());
         }
 
         if (Input.GetMouseButtonUp(0))
@@ -68,13 +76,12 @@ public class TestDrawer : MonoBehaviour
             }
         }
 
-        if (!Input.GetMouseButton(0))
-        {
-            currentPosition = GetMouseWorldPosition();
-        }
+        //if (!Input.GetMouseButton(0))
+        //{
+        //    printer.CurrentPosition = GetMouseWorldPosition();
+        //}
 
-        float distance = Vector3.Distance(currentPosition, GetMouseWorldPosition());
-        velocity = Mathf.Clamp(distance * velocityFactor, 1f, 100f);
+        printer.SetVelocity(CalculatePrinterVelocity());
     }
 
     private IEnumerator PathCalculationCoroutine()
@@ -89,7 +96,7 @@ public class TestDrawer : MonoBehaviour
         {
             path.Clear();
             pathAnchors[0] = pathAnchors[1];
-            pathAnchors[1] = CreateBezierAnchorPoint(pathAnchors[0], currentPosition);
+            pathAnchors[1] = CreateBezierAnchorPoint(pathAnchors[0], printer.CurrentPosition);
             pathAnchors[2] = CreateBezierAnchorPoint(pathAnchors[1], GetMouseWorldPosition());
 
             foreach (GameObject drawnAnchor in drawnAnchors)
@@ -100,7 +107,7 @@ public class TestDrawer : MonoBehaviour
 
             foreach (BezierAnchorPoint pathAnchor in pathAnchors)
             {
-               // drawnAnchors.Add(Instantiate(brush1Prefab, pathAnchor.position, Quaternion.identity));
+                // drawnAnchors.Add(Instantiate(brush1Prefab, pathAnchor.position, Quaternion.identity));
             }
 
             foreach (GameObject pathpoint in drawnPathPoints)
@@ -115,49 +122,8 @@ public class TestDrawer : MonoBehaviour
                 path.Add(point);
                 //drawnPathPoints.Add(Instantiate(brush2Prefab, point, Quaternion.identity));
             }
-            Debug.Log(path.Count.ToString());
-            Debug.Log("path refreshed. Time: " + Time.time);
             yield return new WaitForSeconds(pathRefreshTime);
             currentIndex = 0;
-        }
-    }
-
-    private IEnumerator PrintCoroutine()
-    {
-        currentIndex = 0;
-        List<Vector3> pointsToDraw = new List<Vector3>();
-        float distanceToDraw = 0f;
-
-        while (true)
-        {
-            distanceToDraw += velocity * Time.deltaTime;
-
-            while (distanceToDraw >= brushSize)
-            {
-                if (path.Count > currentIndex + 1)
-                {
-                    Vector3 drawDirection = (path[currentIndex + 1] - path[currentIndex]).normalized;
-                    float pointDistance = Vector3.Distance(path[currentIndex + 1], path[currentIndex]);
-                    if (pointDistance >= brushSize)
-                    {
-                        currentPosition += drawDirection * brushSize;
-                        drawnPoint.Add(Instantiate(brush3Prefab, currentPosition, Quaternion.identity));
-                        distanceToDraw -= brushSize;
-                    }
-                    else
-                    {
-                        currentIndex++;
-                        currentPosition = path[currentIndex];
-                        drawnPoint.Add(Instantiate(brush3Prefab, currentPosition, Quaternion.identity));
-                        distanceToDraw -= pointDistance;
-                    }
-                }
-                else
-                {
-                    distanceToDraw = 0f;
-                }
-            }
-            yield return null;
         }
     }
 
@@ -214,5 +180,11 @@ public class TestDrawer : MonoBehaviour
             Destroy(point.gameObject);
         }
         drawnPoint.Clear();
+    }
+
+    private float CalculatePrinterVelocity()
+    {
+        float distance = Vector3.Distance(printer.CurrentPosition, GetMouseWorldPosition());
+        return Mathf.Clamp(distance * velocityFactor, 1f, 100f);
     }
 }
