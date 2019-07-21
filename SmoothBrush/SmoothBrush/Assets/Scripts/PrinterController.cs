@@ -20,10 +20,9 @@ public class PrinterController : MonoBehaviour
 
     [SerializeField]
     private GameObject brushPrefab;
-    [SerializeField]
-    private GameObject brushPrefab2;
 
-    private float brushSize = 0.16f;
+    [SerializeField]
+    private float brushSize = 1f;
 
     private float distanceToPrint;
     private Vector2 printingStartPoint;
@@ -76,7 +75,9 @@ public class PrinterController : MonoBehaviour
 
     private void PrintPoint(Vector2 point)
     {
-        brushPool.SetBrushInstanceAtPosition(point);
+        GameObject pointInstance = brushPool.GetInstance();
+        pointInstance.transform.localScale = Vector3.one * brushSize;
+        pointInstance.transform.position = point;
         lastDrawnPoint = point;
     }
 

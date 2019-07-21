@@ -571,8 +571,7 @@ MonoBehaviour:
   bufferZoneRadius: 1
   brushPrefab: {fileID: 260792309063248252, guid: 9caa342f1f732f0478aee2545aef32b8,
     type: 3}
-  brushPrefab2: {fileID: 260792309063248252, guid: 71e5a8cca95e0d445b0330f077be944f,
-    type: 3}
+  brushSize: 0.75
 --- !u!4 &1323445152
 Transform:
   m_ObjectHideFlags: 0

@@ -40,7 +40,6 @@ public class DrawingPathGetter
         {
             Vector2 point = GetCubicBezierPoint(currentSegmentStart.position, currentSegmentStart.controlPointAfter, currentSegmentEnd.controlPointBefore, currentSegmentEnd.position, percent);
             path.Add(point);
-            //GameObject.Instantiate(prefab, point, Quaternion.identity);
         }
     }
 
